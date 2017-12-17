@@ -102,19 +102,30 @@ var stage_info = {};
 /* These are the object prototype
 
 shape_obj = {
-    'cubic_points': [],
-    'fill': {},
-    'stroke': {}
+    'parts': [{
+        'edges': {
+            'cubic_points': [],
+            'stroke': {},
+            'isLine': ,
+            'cubicSegmentIndex': ,
+        },
+        'fill': {},
+        'interior': ,
+        'orientation': ,
+    }]
+
 };
 keyframe = {
     'frame_n': 0,
     'frame_label' : 'name',
+    'duration': ,
+    'tween_type': ,
     'shape': {}
 };
 shapes_info = {
-    'stage_size': {},
-    'fps': 24,
-    'layer': ''
+    'stage_info': {},
+    'layer': '',
+    'total_frame_count': ,
     'keyframes': []
 };
 stage_info = {
@@ -139,9 +150,13 @@ var extract_shape = function(element) {
         return;
     }
 
+    // Construct the shape object
+    var obj_shape = {
+        'parts': []
+    };
+
     // Walk thru shape's egdes, we will use this to find out the order of CubicSegments
-    var segment_order_list = []
-    var edge_info_list = []
+    var segment_order_list = [];
     var edges = element.edges;
     if (edges.length < element.numCubicSegments) {
         log.error("edges.length should be >= element.numCubicSegments");
@@ -152,32 +167,84 @@ var extract_shape = function(element) {
         var csi = eg.cubicSegmentIndex;
 
         var _update = function(eg) {
-            var o = {
-                'cubicSegmentIndex': eg.cubicSegmentIndex,
-                'isLine': eg.isLine,
-                'stroke': eg.stroke
-            };
-            edge_info_list.push(o);
             segment_order_list.push(eg.cubicSegmentIndex);
-        }
+        };
 
-        if (segment_order_list.length == 0) {
+        if (segment_order_list.length === 0) {
             _update(eg);
-        } else if(segment_order_list[segment_order_list.length-1] != csi) {
+        } else if(segment_order_list[segment_order_list.length-1] !== csi) {
             _update(eg);  
         }
     }
-    if(segment_order_list.length != element.numCubicSegments) {
+    if(segment_order_list.length !== element.numCubicSegments) {
         log.error("segment_order_list.length != element.numCubicSegments\n\t" 
             + segment_order_list.length + "!=" + element.numCubicSegments);
         return;
     }
 
-    // Get all the cubic points
-    var obj_cubic_point_list = []
+    function get_cubic_point_from_edge(edge, element) {
+        var cubicPoints = element.getCubicSegmentPoints(edge.cubicSegmentIndex);
+
+        // assert that [one key point] has exatly 4 points
+        if (cubicPoints.length !== 4) {
+            log.error("cubicPoints.length != 4, it has" + cubicPoints.length);
+            return;
+        }
+
+        var obj_cubic_point = {
+            'control_point_1': create_point(cubicPoints[1].x, cubicPoints[1].y),
+            'control_point_2': create_point(cubicPoints[2].x, cubicPoints[2].y),
+            'point_from': create_point(cubicPoints[0].x, cubicPoints[0].y),
+            'point_to': create_point(cubicPoints[3].x, cubicPoints[3].y)
+        };
+        return obj_cubic_point;
+    }
+
+    // Get all the cubic points from all `contour` and their `.edge`
+    for(var i_contour = 0; i_contour < element.contours.length; i_contour++) {
+        var the_contour = element.contours[i_contour];
+        if (the_contour.interior === true) {
+
+            var list_edges = [];
+            var he = the_contour.getHalfEdge();
+            var iStart = he.id;
+            var id = 0;
+            while (id !== iStart) {
+
+                // Get the next vertex.
+                var vrt = he.getVertex();
+                var he_eg = he.getEdge();
+                // Construct the edge object
+                var o = {
+                    'cubic_point': get_cubic_point_from_edge(he_eg, element),
+                    'stroke': he_eg.stroke,
+                    'isLine': he_eg.isLine,
+                    'cubicSegmentIndex': he_eg.cubicSegmentIndex
+                };
+                list_edges.push(o);
+
+                he = he.getNext();
+                id = he.id;
+            }
+
+            // Construct the part object
+            var part = {
+                'edges': list_edges,
+                'fill': the_contour.fill,
+                'interior': the_contour.interior,
+                'orientation': the_contour.orientation
+            };
+            obj_shape.parts.push(part);
+
+        }
+
+    }
+
+    /*// Get all the cubic points
+    var obj_cubic_point_list = [];
     for (var _j = 0; _j < segment_order_list.length; _j++) {
 
-        var csi = segment_order_list[_j]
+        var csi = segment_order_list[_j];
         var cubicPoints = element.getCubicSegmentPoints(csi);  
 
         // assert that [one key point] has exatly 4 points
@@ -197,7 +264,7 @@ var extract_shape = function(element) {
     }
 
     // Extract the fill style of the shape
-    //      TODO: There're 2 contours for each shape, for each contour there are 2 fill object. 
+    //      There're 2 contours for each shape, for each contour there are 2 fill object.
     //      Which one should be use? 
     var fill = '';
     var _fill_list = [];
@@ -207,15 +274,10 @@ var extract_shape = function(element) {
         if (_f.style === 'solid') {
             fill = _f;
         }
-    }
+    }*/
 
-    // Construct the shape_object
-    var shape_obj = {
-        'cubic_points': obj_cubic_point_list,
-        'fill': fill
-    };
 
-    return shape_obj;
+    return obj_shape;
 
 };
 
@@ -229,7 +291,7 @@ var save_txtfile = function(contents) {
             return false;
         
     var ending = fileURL.slice(-5);
-    if (ending != '.json')
+    if (ending !== '.json')
         fileURL += '.json';
 
     //var contentsLinebreaks = stringReplace(contents, "\n", "\r\n");
@@ -256,9 +318,9 @@ var get_stage_info = function(doc) {
 var kf_list = [];
 for(j=0; j<frames.length; j++) {
 
-    if (frames[j].startFrame == j) {
+    if (frames[j].startFrame === j) {
         // This is a keyframe
-        log.info("in keyframe " + j + ":");
+        log.info("Processing keyframe " + j + ":");
 
         if (frames[j].elements.length > 1) {
             log.warning("frames[j].elements.length > 1, but only process the first element");    
@@ -281,6 +343,9 @@ for(j=0; j<frames.length; j++) {
         var keyframe = {
             'frame_n': j,
             'frame_label' : frames[j].name,
+            'duration': frames[j].duration,
+            'tween_type': frames[j].tweenType,
+            'ease_curve': frames[j].getCustomEase(),
             'shape': s
         };
         kf_list.push(keyframe);
@@ -291,6 +356,7 @@ for(j=0; j<frames.length; j++) {
 shapes_info = {
     'stage_info': get_stage_info(fl.getDocumentDOM()),
     'layer': 'l'+sel_layer_n+'-'+sel_layer.name,
+    'total_frame_count': sel_layer.frameCount,
     'keyframes': kf_list
 };
 
