@@ -103,7 +103,7 @@ var stage_info = {};
 
 shape_obj = {
     'parts': [{
-        'edges': {
+        'edge_segments': {
             'cubic_points': [],
             'stroke': {},
             'isLine': ,
@@ -185,7 +185,7 @@ var extract_shape = function(element) {
     function get_cubic_point_from_edge(edge, element) {
         var cubicPoints = element.getCubicSegmentPoints(edge.cubicSegmentIndex);
 
-        // assert that [one key point] has exatly 4 points
+        // assert that [one key point] has exactly 4 points
         if (cubicPoints.length !== 4) {
             log.error("cubicPoints.length != 4, it has" + cubicPoints.length);
             return;
@@ -229,7 +229,7 @@ var extract_shape = function(element) {
 
             // Construct the part object
             var part = {
-                'edges': list_edges,
+                'edge_segments': list_edges,
                 'fill': the_contour.fill,
                 'interior': the_contour.interior,
                 'orientation': the_contour.orientation
@@ -240,41 +240,55 @@ var extract_shape = function(element) {
 
     }
 
-    /*// Get all the cubic points
-    var obj_cubic_point_list = [];
-    for (var _j = 0; _j < segment_order_list.length; _j++) {
+    var is_csi_in_part = function(csi, part) {
+        for (var i_seg in part.edge_segments) {
+            if(csi === part.edge_segments[i_seg].cubicSegmentIndex) {
+                return true;
+            }
+        }
+        return false;
+    };
+    // Sort the points according to `segment_order_list`
+    for(var idx=0; idx<segment_order_list.length; ) {
+        var csi = segment_order_list[idx];
+        for (var i_part in obj_shape.parts) {
+            var current_part = obj_shape.parts[i_part];
+            if (is_csi_in_part(csi, current_part)) {
+                var n_seg = current_part.edge_segments.length;
+                var ol = segment_order_list.slice(idx, idx+n_seg);
+                current_part.order_list = ol;
 
-        var csi = segment_order_list[_j];
-        var cubicPoints = element.getCubicSegmentPoints(csi);  
+                // Just check whether all the `csi`s are in the segment
+                for (var _csi in ol) {
+                    if (is_csi_in_part(ol[_csi], current_part) === false) {
+                        log.error("asserting fail: not all csi are in list");
+                        return
+                    }
+                }
 
-        // assert that [one key point] has exatly 4 points
-        if (cubicPoints.length != 4) {
-            log.error("[W] cubicPoints.length != 4, it has" + cubicPoints.length);
-            return;
+                // Do the actual sorting
+                current_part.edge_segments_ordered = [];
+                for (var _csi in ol) {
+                    for (var i_seg in current_part.edge_segments) {
+
+                        // log.info(_csi + " vs " + current_part.edge_segments[i_seg].cubicSegmentIndex);
+                        // log.info(typeof _csi + " vs " + typeof current_part.edge_segments[i_seg].cubicSegmentIndex);
+
+                        if(ol[_csi] === current_part.edge_segments[i_seg].cubicSegmentIndex) {
+                            //log.info('got you');
+                            current_part.edge_segments_ordered.push(
+                                current_part.edge_segments[i_seg]
+                            );
+                        }
+                    }
+                }
+                //log.info(current_part.edge_segments_ordered.toString());
+
+                idx += n_seg;
+            }
         }
 
-        obj_cubic_point = {
-            'control_point_1': create_point(cubicPoints[1].x, cubicPoints[1].y),
-            'control_point_2': create_point(cubicPoints[2].x, cubicPoints[2].y),
-            'point_from': create_point(cubicPoints[0].x, cubicPoints[0].y),
-            'point_to': create_point(cubicPoints[3].x, cubicPoints[3].y),
-            'point_info': edge_info_list[_j]
-        };
-        obj_cubic_point_list.push(obj_cubic_point);
     }
-
-    // Extract the fill style of the shape
-    //      There're 2 contours for each shape, for each contour there are 2 fill object.
-    //      Which one should be use? 
-    var fill = '';
-    var _fill_list = [];
-    for (var _c in element.contours) {
-        var _f = element.contours[_c].fill;
-        _fill_list.push(_f);
-        if (_f.style === 'solid') {
-            fill = _f;
-        }
-    }*/
 
 
     return obj_shape;
