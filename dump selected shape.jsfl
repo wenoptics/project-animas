@@ -267,7 +267,7 @@ var extract_shape = function(element) {
                 }
 
                 // Do the actual sorting
-                current_part.edge_segments_ordered = [];
+                current_part.cubic_segment_ordered = [];
                 for (var _csi in ol) {
                     for (var i_seg in current_part.edge_segments) {
 
@@ -276,18 +276,33 @@ var extract_shape = function(element) {
 
                         if(ol[_csi] === current_part.edge_segments[i_seg].cubicSegmentIndex) {
                             //log.info('got you');
-                            current_part.edge_segments_ordered.push(
-                                current_part.edge_segments[i_seg]
-                            );
+                            var n = current_part.cubic_segment_ordered.length;
+                            if (n === 0 || current_part.cubic_segment_ordered[n-1].cubicSegmentIndex !== ol[_csi]) {
+                                // Filter out the duplicated segment
+                                current_part.cubic_segment_ordered.push(
+                                    current_part.edge_segments[i_seg]
+                                );
+                            }
+
                         }
                     }
                 }
-                //log.info(current_part.edge_segments_ordered.toString());
+                //log.info(current_part.cubic_segment_ordered.toString());
 
                 idx += n_seg;
             }
         }
 
+    }
+
+    var sum = 0;
+    for (var i_p in obj_shape.parts) {
+        sum += obj_shape.parts[i_p].cubic_segment_ordered.length;
+    }
+    if (sum !== element.numCubicSegments) {
+        log.error("sum of cubic_segment_ordered.length should be === element.numCubicSegments\nnow "
+            + sum + " !== " + element.numCubicSegments);
+        return;
     }
 
 
