@@ -1,0 +1,421 @@
+// This script is for dumping the scene layers to a JSON file
+
+//---------------------------JSON Helper----------------------------------------------
+(function(global){
+    
+    /**
+    *  The JSON serialization and unserialization methods
+    *  @class JSON
+    */
+    var JSON = {};
+
+    JSON.prettyPrint = false;
+
+    /**
+    *  implement JSON.stringify serialization
+    *  @method stringify
+    *  @param {Object} obj The object to convert
+    */
+    JSON.stringify = function(obj)
+    {
+        return _internalStringify(obj, 0);
+    };
+
+    function _internalStringify(obj, depth, fromArray)
+    {
+        var t = typeof (obj);
+        if (t != "object" || obj === null)
+        {
+            // simple data type
+            if (t == "string") return '"'+obj+'"';
+            return String(obj);
+        }
+        else
+        {
+            // recurse array or object
+            var n, v, json = [], arr = (obj && obj.constructor == Array);
+
+            var joinString, bracketString, firstPropString;
+            if(JSON.prettyPrint)
+            {
+                joinString = ",\n";
+                bracketString = "\n";
+                for(var i = 0; i < depth; ++i)
+                {
+                    joinString += "\t";
+                    bracketString += "\t";
+                }
+                joinString += "\t";//one extra for the properties of this object
+                firstPropString = bracketString + "\t";
+            }
+            else
+            {
+                joinString = ",";
+                firstPropString = bracketString = "";
+            }
+            for (n in obj)
+            {
+                v = obj[n]; t = typeof(v);
+
+                // Ignore functions
+                if (t == "function") continue;
+
+                if (t == "string") v = '"'+v+'"';
+                else if (t == "object" && v !== null) v = _internalStringify(v, depth + 1, arr);
+
+                json.push((arr ? "" : '"' + n + '":') + String(v));
+            }
+            return (fromArray || depth === 0 ? "" : bracketString)+ (arr ? "[" : "{") + firstPropString + json.join(joinString) + bracketString + (arr ? "]" : "}");
+        }
+    }
+
+    /**
+    *  Implement JSON.parse de-serialization
+    *  @method parse
+    *  @param {String} str The string to de-serialize
+    */
+    JSON.parse = function(str)
+    {
+        if (str === "") str = '""';
+        eval("var p=" + str + ";"); // jshint ignore:line
+        return p;
+    };
+
+    // Assign to global space
+    global.JSON = JSON;
+
+}(window));
+
+//-------------------------Main-------------------------------------------------------
+
+// This object contains all the info needed to be dumped.
+var shapes_info = {};
+var keyframe = {};
+var shape_obj = {};
+var stage_info = {};
+/* These are the object prototype
+
+shape_obj = {
+    'parts': [{
+        'edge_segments': {
+            'cubic_points': [],
+            'stroke': {},
+            'isLine': ,
+            'cubicSegmentIndex': ,
+        },
+        'fill': {},
+        'interior': ,
+        'orientation': ,
+    }]
+
+};
+keyframe = {
+    'frame_n': 0,
+    'frame_label' : 'name',
+    'duration': ,
+    'tween_type': ,
+    'shape': {}
+};
+shapes_info = {
+    'stage_info': {},
+    'layer': '',
+    'total_frame_count': ,
+    'keyframes': []
+};
+stage_info = {
+    'fps': 24,
+    'stage_height': 200,
+    'stage_width': 200,
+    'bg_color': '#000000'
+}
+*/
+
+var log = {
+    'tag': '',
+    'info': function(s) { fl.trace("[Info]["+this.tag+"]" + s); },
+    'warning': function(s) { fl.trace("[Warning]["+this.tag+"]" + s); },
+    'error': function(s) { fl.trace("[Error]["+this.tag+"]" + s); }
+};
+
+var create_point = function(x, y) { return {'x': x, 'y': y}; };
+var create_point_offset = function(x, y, tx, ty) { return {'x': x-tx, 'y': y-ty}; };
+
+var extract_shape = function(element) {
+    if (element.elementType !== "shape") {
+        return;
+    }
+
+    // Construct the shape object
+    var obj_shape = {
+        'transformX': element.transformX,
+        'transformY': element.transformY,
+        'scaleX': element.scaleX,
+        'scaleY': element.scaleY,
+        'parts': []
+    };
+
+    // Walk thru shape's egdes, we will use this to find out the order of CubicSegments
+    var segment_order_list = [];
+    var edges = element.edges;
+    if (edges.length < element.numCubicSegments) {
+        log.error("edges.length should be >= element.numCubicSegments");
+        return;
+    }
+    for (var _e = 0; _e < edges.length; _e++) {
+        var eg = edges[_e];
+        var csi = eg.cubicSegmentIndex;
+
+        var _update = function(eg) {
+            segment_order_list.push(eg.cubicSegmentIndex);
+        };
+
+        if (segment_order_list.length === 0) {
+            _update(eg);
+        } else if(segment_order_list[segment_order_list.length-1] !== csi) {
+            _update(eg);  
+        }
+    }
+    if(segment_order_list.length !== element.numCubicSegments) {
+        log.error("segment_order_list.length != element.numCubicSegments\n\t" 
+            + segment_order_list.length + "!=" + element.numCubicSegments);
+        return;
+    }
+
+    function get_cubic_point_from_edge(edge, element) {
+        var cubicPoints = element.getCubicSegmentPoints(edge.cubicSegmentIndex);
+
+        // assert that [one key point] has exactly 4 points
+        if (cubicPoints.length !== 4) {
+            log.error("cubicPoints.length != 4, it has" + cubicPoints.length);
+            return;
+        }
+
+        var obj_cubic_point = {
+            // These points are also offset by the Transform values
+            'control_point_1': create_point_offset(cubicPoints[1].x, cubicPoints[1].y,
+                                                    element.transformX, element.transformY),
+            'control_point_2': create_point_offset(cubicPoints[2].x, cubicPoints[2].y,
+                                                    element.transformX, element.transformY),
+            'point_from': create_point_offset(cubicPoints[0].x, cubicPoints[0].y,
+                                                    element.transformX, element.transformY),
+            'point_to': create_point_offset(cubicPoints[3].x, cubicPoints[3].y,
+                                                    element.transformX, element.transformY)
+        };
+        return obj_cubic_point;
+    }
+
+    // Get all the cubic points from all `contour` and their `.edge`
+    for(var i_contour = 0; i_contour < element.contours.length; i_contour++) {
+        var the_contour = element.contours[i_contour];
+        if (the_contour.interior === true) {
+
+            var list_edges = [];
+            var he = the_contour.getHalfEdge();
+            var iStart = he.id;
+            var id = 0;
+            while (id !== iStart) {
+
+                var he_eg = he.getEdge();
+                // Construct the edge object
+                var o = {
+                    'cubic_point': get_cubic_point_from_edge(he_eg, element),
+                    'stroke': he_eg.stroke,
+                    'isLine': he_eg.isLine,
+                    'cubicSegmentIndex': he_eg.cubicSegmentIndex
+                };
+                list_edges.push(o);
+
+                he = he.getNext();
+                id = he.id;
+            }
+
+            // Construct the part object
+            var part = {
+                'edge_segments': list_edges,
+                'fill': the_contour.fill,
+                'interior': the_contour.interior,
+                'orientation': the_contour.orientation
+            };
+            obj_shape.parts.push(part);
+
+        }
+
+    }
+
+    var is_csi_in_part = function(csi, part) {
+        for (var i_seg in part.edge_segments) {
+            if(csi === part.edge_segments[i_seg].cubicSegmentIndex) {
+                return true;
+            }
+        }
+        return false;
+    };
+    // Sort the points according to `segment_order_list`
+    for(var idx=0; idx<segment_order_list.length; ) {
+        var csi = segment_order_list[idx];
+        for (var i_part in obj_shape.parts) {
+            var current_part = obj_shape.parts[i_part];
+            if (is_csi_in_part(csi, current_part)) {
+                var n_seg = current_part.edge_segments.length;
+                var ol = segment_order_list.slice(idx, idx+n_seg);
+                current_part.order_list = ol;
+
+                // Just check whether all the `csi`s are in the segment
+                for (var _csi in ol) {
+                    if (is_csi_in_part(ol[_csi], current_part) === false) {
+                        log.error("asserting fail: not all csi are in list");
+                        return
+                    }
+                }
+
+                // Do the actual sorting
+                current_part.cubic_segment_ordered = [];
+                for (var _csi in ol) {
+                    for (var i_seg in current_part.edge_segments) {
+
+                        // log.info(_csi + " vs " + current_part.edge_segments[i_seg].cubicSegmentIndex);
+                        // log.info(typeof _csi + " vs " + typeof current_part.edge_segments[i_seg].cubicSegmentIndex);
+
+                        if(ol[_csi] === current_part.edge_segments[i_seg].cubicSegmentIndex) {
+                            //log.info('got you');
+                            var n = current_part.cubic_segment_ordered.length;
+                            if (n === 0 || current_part.cubic_segment_ordered[n-1].cubicSegmentIndex !== ol[_csi]) {
+                                // Filter out the duplicated segment
+                                current_part.cubic_segment_ordered.push(
+                                    current_part.edge_segments[i_seg]
+                                );
+                            }
+
+                        }
+                    }
+                }
+                //log.info(current_part.cubic_segment_ordered.toString());
+
+                idx += n_seg;
+            }
+        }
+
+    }
+
+    var sum = 0;
+    for (var i_p in obj_shape.parts) {
+        sum += obj_shape.parts[i_p].cubic_segment_ordered.length;
+    }
+    if (sum !== element.numCubicSegments) {
+        log.error("sum of cubic_segment_ordered.length should be === element.numCubicSegments\nnow "
+            + sum + " !== " + element.numCubicSegments);
+        return;
+    }
+
+    return obj_shape;
+
+};
+var extract_layer = function (layer) {
+    log.info("extracting layer" + layer.name);
+    var frames = layer.frames;
+
+    // Walk thru all the frames
+    var kf_list = [];
+    for(j=0; j<frames.length; j++) {
+
+        if (frames[j].startFrame === j) {
+            // This is a keyframe
+            log.info("\tProcessing keyframe " + j + "");
+
+            if (frames[j].elements.length > 1) {
+                log.warning("frames[j].elements.length > 1, but only process the first element");
+            }
+            var element = frames[j].elements[0];
+
+            if (element.elementType !== "shape") {
+                log.warning("element.elementType !== shape, skip this frame...");
+                continue;
+            }
+
+            var s = extract_shape(element);
+            if (!s) {
+                log.warning('extract shape fail');
+            }
+
+            //fl.trace(JSON.stringify(s));
+
+            // Construct the keyframe obj
+            var keyframe = {
+                'frame_n': j,
+                'frame_label' : frames[j].name,
+                'duration': frames[j].duration,
+                'tween_type': frames[j].tweenType,
+                'ease_curve': frames[j].getCustomEase(),
+                'shape': s
+            };
+            kf_list.push(keyframe);
+        }
+    }
+
+    // Construct layer info
+    var layer_info = {
+        'stage_info': get_stage_info(fl.getDocumentDOM()),
+        'layer_name': layer.name,
+        'total_frame_count': layer.frameCount,
+        'keyframes': kf_list
+    };
+
+    return layer_info;
+
+};
+
+var get_stage_info = function(doc) {
+    var stage_info = {
+        'fps': doc.frameRate,
+        'stage_height': doc.height,
+        'stage_width': doc.width,
+        'bg_color': doc.backgroundColor
+    };
+    return stage_info;
+};
+
+// Construct the scene object
+var obj_scene = {
+    'scene_info': get_stage_info(fl.getDocumentDOM()),
+    'layers': []
+};
+
+// Walk thru all the layers and extract them
+var l = fl.getDocumentDOM().getTimeline().layers;
+for (var i in l) {
+    if (l[i].layerType !== 'normal')
+        continue;
+    var one_layer_info = extract_layer(l[i]);
+    obj_scene.layers.push(one_layer_info);
+}
+
+var save_txt_file = function(contents) {
+    if (!contents)
+        return false;
+    var fileURL = '';
+
+    fileURL = fl.browseForFileURL("save", "将 JSON 另存为...", "JSON 文件·(*.json)", "json");
+    if (!fileURL || !fileURL.length)
+        return false;
+
+    var ending = fileURL.slice(-5);
+    if (ending !== '.json')
+        fileURL += '.json';
+
+    //var contentsLinebreaks = stringReplace(contents, "\n", "\r\n");
+
+    if (!FLfile.write(fileURL, contents))
+    {
+        alert('保存失败');
+        return false;
+    }
+    return fileURL;
+};
+//var save_file_path = fl.getDocumentDOM().path;
+json_txt = JSON.stringify(obj_scene);
+saved_path = save_txt_file(json_txt);
+if (saved_path) {
+    log.info('json file saved to ' + saved_path);
+}
+
+
