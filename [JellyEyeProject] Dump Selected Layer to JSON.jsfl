@@ -144,6 +144,7 @@ var log = {
 };
 
 var create_point = function(x, y) { return {'x': x, 'y': y}; };
+var create_point_offset = function(x, y, tx, ty) { return {'x': x-tx, 'y': y-ty}; };
 
 var extract_shape = function(element) {
     if (element.elementType !== "shape") {
@@ -152,6 +153,10 @@ var extract_shape = function(element) {
 
     // Construct the shape object
     var obj_shape = {
+        'transformX': element.transformX,
+        'transformY': element.transformY,
+        'scaleX': element.scaleX,
+        'scaleY': element.scaleY,
         'parts': []
     };
 
@@ -192,10 +197,15 @@ var extract_shape = function(element) {
         }
 
         var obj_cubic_point = {
-            'control_point_1': create_point(cubicPoints[1].x, cubicPoints[1].y),
-            'control_point_2': create_point(cubicPoints[2].x, cubicPoints[2].y),
-            'point_from': create_point(cubicPoints[0].x, cubicPoints[0].y),
-            'point_to': create_point(cubicPoints[3].x, cubicPoints[3].y)
+            // These points are also offset by the Transform values
+            'control_point_1': create_point_offset(cubicPoints[1].x, cubicPoints[1].y,
+                                                    element.transformX, element.transformY),
+            'control_point_2': create_point_offset(cubicPoints[2].x, cubicPoints[2].y,
+                                                    element.transformX, element.transformY),
+            'point_from': create_point_offset(cubicPoints[0].x, cubicPoints[0].y,
+                                                    element.transformX, element.transformY),
+            'point_to': create_point_offset(cubicPoints[3].x, cubicPoints[3].y,
+                                                    element.transformX, element.transformY)
         };
         return obj_cubic_point;
     }
