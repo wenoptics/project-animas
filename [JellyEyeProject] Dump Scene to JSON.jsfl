@@ -147,10 +147,19 @@ var extract_shape = function(element) {
 
     // Construct the shape object
     var obj_shape = {
+        'x': element.x,
+        'y': element.y,
         'transformX': element.transformX,
         'transformY': element.transformY,
         'scaleX': element.scaleX,
         'scaleY': element.scaleY,
+        'isOvalObject': element.isOvalObject,
+        'isRectangleObject': element.isRectangleObject,
+        'width': element.width,
+        'height': element.height,
+        'left': element.left,
+        'top': element.top,
+        'rotation': element.rotation,
         'parts': []
     };
 
