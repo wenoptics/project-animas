@@ -70,6 +70,14 @@ for(i=0; i<layers.length; i++) {
                         pl[_i]
                         fl.trace("\t\t\t\t\t\t." + pl[_i] + ": " + eval("e."+pl[_i]));
                     }
+                    fl.trace("\t\t\t\t\t\t.matrix " + e.matrix+":");
+                    fl.trace("\t\t\t\t\t\t\t.a:" + e.matrix.a);
+                    fl.trace("\t\t\t\t\t\t\t.b:" + e.matrix.b);
+                    fl.trace("\t\t\t\t\t\t\t.c:" + e.matrix.c);
+                    fl.trace("\t\t\t\t\t\t\t.d:" + e.matrix.d);
+                    fl.trace("\t\t\t\t\t\t\t.tx:" + e.matrix.tx);
+                    fl.trace("\t\t\t\t\t\t\t.ty:" + e.matrix.ty);
+                    fl.trace("\t\t\t\t\t\t.getTransformationPoint(): (" + e.getTransformationPoint().x+", "+e.getTransformationPoint().y+")");
 
                     // If it's a shape object
                     if (e.elementType === 'shape') {

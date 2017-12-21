@@ -199,21 +199,31 @@ var extract_shape = function(element) {
             return;
         }
 
+        /*var is_in_bounds = function (x, y) {
+            return (x>=element.left && x <= element.left+element.width
+                && y>=element.top && y <= element.top+element.height);
+        };
+        if (is_in_bounds(cubicPoints[3].x, cubicPoints[3].y) &&
+            is_in_bounds(cubicPoints[0].x, cubicPoints[0].y)
+        ) { log.info("all the points are in bounds") } else { log.info("not all the points are in bounds") }*/
+
+        function transformPointXY( x, y, mat ) {
+            var _x = x*mat.a + y*mat.c + mat.tx;
+            var _y = x*mat.b + y*mat.d + mat.ty;
+            return create_point(_x, _y);
+        }
+
         var obj_cubic_point = {
-            // These points are also offset by the Transform values
-            'control_point_1': create_point_offset(cubicPoints[1].x, cubicPoints[1].y,
-                                                    element.transformX, element.transformY),
-            'control_point_2': create_point_offset(cubicPoints[2].x, cubicPoints[2].y,
-                                                    element.transformX, element.transformY),
-            'point_from': create_point_offset(cubicPoints[0].x, cubicPoints[0].y,
-                                                    element.transformX, element.transformY),
-            'point_to': create_point_offset(cubicPoints[3].x, cubicPoints[3].y,
-                                                    element.transformX, element.transformY)
+            // These points are transform by the transform matrix (should I just reserve the origin data as well as the matrix data?)
+            'control_point_1': transformPointXY(cubicPoints[1].x, cubicPoints[1].y, element.matrix),
+            'control_point_2': transformPointXY(cubicPoints[2].x, cubicPoints[2].y, element.matrix),
+            'point_from': transformPointXY(cubicPoints[0].x, cubicPoints[0].y, element.matrix),
+            'point_to': transformPointXY(cubicPoints[3].x, cubicPoints[3].y, element.matrix)
         };
         return obj_cubic_point;
     }
 
-    // Get all the cubic points from all `contour` and their `.edge`
+    // (`parts`) Get all the cubic points from all `contour` and their `.edge`
     for(var i_contour = 0; i_contour < element.contours.length; i_contour++) {
         var the_contour = element.contours[i_contour];
         if (the_contour.interior === true) {
@@ -262,9 +272,13 @@ var extract_shape = function(element) {
     // Sort the points according to `segment_order_list`
     for(var idx=0; idx<segment_order_list.length; ) {
         var csi = segment_order_list[idx];
+        var csi_found = false;
+        //log.info("checking csi of "+ csi);
         for (var i_part in obj_shape.parts) {
+            //log.info("\tchecking part["+ i_part+"]");
             var current_part = obj_shape.parts[i_part];
             if (is_csi_in_part(csi, current_part)) {
+                csi_found = true;
                 var n_seg = current_part.edge_segments.length;
                 var ol = segment_order_list.slice(idx, idx+n_seg);
                 current_part.order_list = ol;
@@ -272,7 +286,7 @@ var extract_shape = function(element) {
                 // Just check whether all the `csi`s are in the segment
                 for (var _csi in ol) {
                     if (is_csi_in_part(ol[_csi], current_part) === false) {
-                        log.error("asserting fail: not all csi are in list");
+                        log.error("asserting fail: not all csi are in list (csi=="+csi+"not in this part)");
                         return
                     }
                 }
@@ -303,6 +317,12 @@ var extract_shape = function(element) {
                 idx += n_seg;
             }
         }
+        if (csi_found===false) {
+            // This csi cannot be found in any of the parts (maybe somewhere in the interior==false parts)
+            // So we skip this csi
+            log.info("skipping csi "+ csi+"(csi-order list=="+segment_order_list.toString());
+            idx++;
+        }
 
     }
 
@@ -311,9 +331,9 @@ var extract_shape = function(element) {
         sum += obj_shape.parts[i_p].cubic_segment_ordered.length;
     }
     if (sum !== element.numCubicSegments) {
-        log.error("sum of cubic_segment_ordered.length should be === element.numCubicSegments\nnow "
+        log.warning("sum of cubic_segment_ordered.length should be === element.numCubicSegments\nbut "
             + sum + " !== " + element.numCubicSegments);
-        return;
+        //return;
     }
 
     return obj_shape;
