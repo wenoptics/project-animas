@@ -385,6 +385,7 @@ var extract_layer = function (layer) {
     var layer_info = {
         'stage_info': get_stage_info(fl.getDocumentDOM()),
         'layer_name': layer.name,
+        'layer_type': layer.layerType,
         'total_frame_count': layer.frameCount,
         'keyframes': kf_list
     };
@@ -412,7 +413,7 @@ var obj_scene = {
 // Walk thru all the layers and extract them
 var l = fl.getDocumentDOM().getTimeline().layers;
 for (var i in l) {
-    if (l[i].layerType !== 'normal')
+    if (l[i].layerType !== 'normal' && l[i].layerType !== 'guide')
         continue;
     var one_layer_info = extract_layer(l[i]);
     obj_scene.layers.push(one_layer_info);
