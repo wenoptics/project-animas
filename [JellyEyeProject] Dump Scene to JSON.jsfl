@@ -139,6 +139,12 @@ var log = {
 
 var create_point = function(x, y) { return {'x': x, 'y': y}; };
 var create_point_offset = function(x, y, tx, ty) { return {'x': x-tx, 'y': y-ty}; };
+function is_element_in_list(element, list) {
+    for (var _i=0; _i<list.length; _i++) {
+        if (list[_i] === element) return true;
+    }
+    return false;
+}
 
 var extract_shape = function(element) {
     if (element.elementType !== "shape") {
@@ -228,6 +234,7 @@ var extract_shape = function(element) {
         var the_contour = element.contours[i_contour];
         if (the_contour.interior === true) {
 
+            var _unique_csi_list = [];
             var list_edges = [];
             var he = the_contour.getHalfEdge();
             var iStart = he.id;
@@ -235,14 +242,19 @@ var extract_shape = function(element) {
             while (id !== iStart) {
 
                 var he_eg = he.getEdge();
-                // Construct the edge object
-                var o = {
-                    'cubic_point': get_cubic_point_from_edge(he_eg, element),
-                    'stroke': he_eg.stroke,
-                    'isLine': he_eg.isLine,
-                    'cubicSegmentIndex': he_eg.cubicSegmentIndex
-                };
-                list_edges.push(o);
+                if (!is_element_in_list(he_eg.cubicSegmentIndex, _unique_csi_list))
+                {
+                    _unique_csi_list.push(he_eg.cubicSegmentIndex);
+
+                    // Construct the edge object
+                    var o = {
+                        'cubicSegmentIndex': he_eg.cubicSegmentIndex,
+                        'cubic_point': get_cubic_point_from_edge(he_eg, element),
+                        'stroke': he_eg.stroke,
+                        'isLine': he_eg.isLine
+                    };
+                    list_edges.push(o);
+                }
 
                 he = he.getNext();
                 id = he.id;
@@ -282,11 +294,13 @@ var extract_shape = function(element) {
                 var n_seg = current_part.edge_segments.length;
                 var ol = segment_order_list.slice(idx, idx+n_seg);
                 current_part.order_list = ol;
+                //log.info('segment_order_list[idx:idx+n_seg] === '+ol.toString());
+                //log.info('(segment_order_list[:] === '+segment_order_list.toString()+')');
 
                 // Just check whether all the `csi`s are in the segment
                 for (var _csi in ol) {
                     if (is_csi_in_part(ol[_csi], current_part) === false) {
-                        log.error("asserting fail: not all csi are in list (csi=="+csi+"not in this part)");
+                        log.error("asserting fail: not all csi are in list (csi=="+ol[_csi]+" not in this part)");
                         return
                     }
                 }
@@ -315,6 +329,7 @@ var extract_shape = function(element) {
                 //log.info(current_part.cubic_segment_ordered.toString());
 
                 idx += n_seg;
+                break;
             }
         }
         if (csi_found===false) {

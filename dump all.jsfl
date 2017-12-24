@@ -24,25 +24,25 @@ for(i=0; i<layers.length; i++) {
 
                 // Print out the ease curve control points
                 if(easeCurve.length > 0) {
-                    fl.trace("\t\t\t\t easeCurve:");
+                    fl.trace("\t\t\teaseCurve:");
                     for (g=0; g<easeCurve.length; g++) {
-                        fl.trace("\t\t\t\t\t (x, y) == " + easeCurve[g].x + ", " + easeCurve[g].y);       
+                        fl.trace("\t\t\t\t (x, y) == " + easeCurve[g].x + ", " + easeCurve[g].y);
                     }               
                 }
                 var _p = ['tweenType', 'tweenEasing', 'tweenInstanceName', 'useSingleEaseCurve', 'isMotionObject()']
                 for (var __p in _p) {
-                    fl.trace("\t\t\t\t ." + _p[__p] + ': ' + eval('frames[j].'+_p[__p]));    
+                    fl.trace("\t\t\t." + _p[__p] + ': ' + eval('frames[j].'+_p[__p]));
                 }
                 
 
                 // Show elements on stage
                 es = frames[j].elements;
 
-                fl.trace("\t\t\t\t elements print")
-                for (var _e = 0; _e < es.length; _e++) {
-                    fl.trace(" \t\t\t\t\t element [" + _e+1 + "/" + es.length + "]");
+                fl.trace("\t\t\telements print");
+                for (var _e_i = 0; _e_i < es.length; _e_i++) {
+                    fl.trace(" \t\t\t\telement [" + (_e_i+1) + "/" + es.length + "]");
 
-                    var e = es[_e];
+                    var e = es[_e_i];
                     pl = [
                         'depth',
                         'elementType',
@@ -67,17 +67,17 @@ for(i=0; i<layers.length; i++) {
                     ];
 
                     for (var _i = 0; _i < pl.length; _i++) {
-                        pl[_i]
-                        fl.trace("\t\t\t\t\t\t." + pl[_i] + ": " + eval("e."+pl[_i]));
+                        pl[_i];
+                        fl.trace("\t\t\t\t\t." + pl[_i] + ": " + eval("e."+pl[_i]));
                     }
-                    fl.trace("\t\t\t\t\t\t.matrix " + e.matrix+":");
-                    fl.trace("\t\t\t\t\t\t\t.a:" + e.matrix.a);
-                    fl.trace("\t\t\t\t\t\t\t.b:" + e.matrix.b);
-                    fl.trace("\t\t\t\t\t\t\t.c:" + e.matrix.c);
-                    fl.trace("\t\t\t\t\t\t\t.d:" + e.matrix.d);
-                    fl.trace("\t\t\t\t\t\t\t.tx:" + e.matrix.tx);
-                    fl.trace("\t\t\t\t\t\t\t.ty:" + e.matrix.ty);
-                    fl.trace("\t\t\t\t\t\t.getTransformationPoint(): (" + e.getTransformationPoint().x+", "+e.getTransformationPoint().y+")");
+                    fl.trace("\t\t\t\t\t.matrix " + e.matrix+":");
+                    fl.trace("\t\t\t\t\t\t.a:" + e.matrix.a);
+                    fl.trace("\t\t\t\t\t\t.b:" + e.matrix.b);
+                    fl.trace("\t\t\t\t\t\t.c:" + e.matrix.c);
+                    fl.trace("\t\t\t\t\t\t.d:" + e.matrix.d);
+                    fl.trace("\t\t\t\t\t\t.tx:" + e.matrix.tx);
+                    fl.trace("\t\t\t\t\t\t.ty:" + e.matrix.ty);
+                    fl.trace("\t\t\t\t\t.getTransformationPoint(): (" + e.getTransformationPoint().x+", "+e.getTransformationPoint().y+")");
 
                     // If it's a shape object
                     if (e.elementType === 'shape') {
@@ -100,7 +100,7 @@ for(i=0; i<layers.length; i++) {
                             'numCubicSegments',
                             'vertices'
                         ]
-                        fl.trace("\t\t\t\t shape print");
+                        fl.trace("\t\t\t\t shape print (This element is a `shape`)");
                         for (var _i = 0; _i < pl.length; _i++) {
                             //pl[_i]
                             fl.trace("\t\t\t\t\t\t." + pl[_i] + ": " + eval("sp."+pl[_i]));
