@@ -25,10 +25,10 @@ The HTML5 animation AN created uses CreateJS, which inspires the animation engin
 
 ## Catch a glimpse
 
-![01.png](img/01.png "(Support keyframe labeling for conveniently accessing on runtime)")
+![01.png](http://project-animas.wenop.tk/img/01.png "(Support keyframe labeling for conveniently accessing on runtime)")
 (Support keyframe labeling for conveniently accessing on runtime)
 
-![02.png](img/02.png "(Support customizing guided layer for special usage)")
+![02.png](http://project-animas.wenop.tk/img/02.png "(Support customizing guided layer for special usage)")
 (Support customizing guided layer for special usage)
 
 Make a blink-eye animation:
