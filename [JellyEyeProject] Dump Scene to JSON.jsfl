@@ -139,12 +139,62 @@ var log = {
 
 var create_point = function(x, y) { return {'x': x, 'y': y}; };
 var create_point_offset = function(x, y, tx, ty) { return {'x': x-tx, 'y': y-ty}; };
-function is_element_in_list(element, list) {
+var is_element_in_list = function(element, list) {
     for (var _i=0; _i<list.length; _i++) {
         if (list[_i] === element) return true;
     }
     return false;
-}
+};
+var ui_save_file = function() {
+    return fl.browseForFileURL("save", "将 JSON 另存为...", "JSON 文件·(*.json)", "json");
+};
+var check_url = function (url) {
+    return (url && url.length)
+};
+var save_txt_file = function(contents, url_save_to) {
+    if (!contents)
+        return false;
+    var fileURL = '';
+
+    fileURL = url_save_to;
+    if (!check_url(fileURL))
+        return false;
+
+    var ending = fileURL.slice(-5);
+    if (ending !== '.json')
+        fileURL += '.json';
+
+    //var contentsLinebreaks = stringReplace(contents, "\n", "\r\n");
+
+    if (!FLfile.write(fileURL, contents))
+    {
+        alert('保存失败');
+        return false;
+    }
+    return fileURL;
+};
+var PATH_SEP = '/'; // Can't use `const`, will encounter problem in Animate CC
+var path_get_parent = function(file_path){
+    var _l = file_path.split(PATH_SEP);
+    return _l.slice(0, _l.length-1).join(PATH_SEP)
+};
+var path_concat = function (path1, path2) {
+    if (path1[path1.length-1] !== PATH_SEP) {
+        path1+=PATH_SEP;
+    }
+    return path1+path2;
+};
+
+var init_library_items = function () {
+    var ret_dict = {};
+    var item_list = fl.getDocumentDOM().library.items;
+    for (var i in item_list) {
+        ret_dict[item_list[i].name] = item_list[i];
+        ret_dict[item_list[i].name].has_dumped = false;
+    }
+    return ret_dict;
+};
+var lib_items = init_library_items();
 
 var extract_shape = function(element) {
     if (element.elementType !== "shape") {
@@ -153,19 +203,8 @@ var extract_shape = function(element) {
 
     // Construct the shape object
     var obj_shape = {
-        'x': element.x,
-        'y': element.y,
-        'transformX': element.transformX,
-        'transformY': element.transformY,
-        'scaleX': element.scaleX,
-        'scaleY': element.scaleY,
         'isOvalObject': element.isOvalObject,
         'isRectangleObject': element.isRectangleObject,
-        'width': element.width,
-        'height': element.height,
-        'left': element.left,
-        'top': element.top,
-        'rotation': element.rotation,
         'parts': []
     };
 
@@ -367,32 +406,70 @@ var extract_layer = function (layer) {
             log.info("\tProcessing keyframe " + j + "");
 
             if (frames[j].elements.length > 1) {
+                // TODO
                 log.warning("frames[j].elements.length > 1, but only process the first element");
             }
             var element = frames[j].elements[0];
 
-            if (element.elementType !== "shape") {
-                log.warning("element.elementType !== shape, skip this frame...");
-                continue;
+            function add_element_common_to_obj(obj, element) {
+                obj['x'] = element.x;
+                obj['y'] = element.y;
+                obj['transformX'] = element.transformX;
+                obj['transformY'] = element.transformY;
+                obj['scaleX'] = element.scaleX;
+                obj['scaleY'] = element.scaleY;
+                obj['width'] = element.width;
+                obj['height'] = element.height;
+                obj['left'] = element.left;
+                obj['top'] = element.top;
+                obj['rotation'] = element.rotation;
+                obj['skewX'] = element.skewX;
+                obj['skewY'] = element.skewY;
             }
-
-            var s = extract_shape(element);
-            if (!s) {
-                log.warning('extract shape fail');
-            }
-
-            //fl.trace(JSON.stringify(s));
-
             // Construct the keyframe obj
             var keyframe = {
                 'frame_n': j,
                 'frame_label' : frames[j].name,
                 'duration': frames[j].duration,
                 'tween_type': frames[j].tweenType,
-                'ease_curve': frames[j].getCustomEase(),
-                'shape': s
+                'ease_curve': frames[j].getCustomEase()
             };
-            kf_list.push(keyframe);
+
+            if (element.elementType === "shape") {
+                log.info("found shape element");
+                var s = extract_shape(element);
+                if (!s) {
+                    log.warning('extract shape fail');
+                }else{
+                    //fl.trace(JSON.stringify(s));
+                    keyframe['shape'] = s;
+                    add_element_common_to_obj(s, element);
+                    keyframe.type = 'shape';
+                    kf_list.push(keyframe);
+                }
+            } else if (element.elementType === "instance") {
+                if (element.instanceType === 'bitmap') {
+                    log.info("found instance->bitmap element");
+                    var it = element.libraryItem;
+                    var relate_path = it.name.replace(PATH_SEP, '__');
+                    var save_path = path_concat(path_get_parent(url_save_file), relate_path);
+                    //log.info("lib_items[it.name].has_dumped: " + lib_items[it.name].has_dumped);
+                    if (!lib_items[it.name].has_dumped) {
+                        it.exportToFile(save_path);
+                        lib_items[it.name].has_dumped = true;
+                        log.info('"'+it.name+'" exported to ' + save_path)
+                    }
+                    // The bitmap object
+                    var b = {
+                        'file': relate_path
+                    };
+                    add_element_common_to_obj(b, element);
+                    keyframe['bitmap'] = b;
+                    keyframe.type = 'bitmap';
+                    kf_list.push(keyframe);
+                }
+            }
+
         }
     }
 
@@ -419,48 +496,35 @@ var get_stage_info = function(doc) {
     return stage_info;
 };
 
-// Construct the scene object
-var obj_scene = {
-    'scene_info': get_stage_info(fl.getDocumentDOM()),
-    'layers': []
-};
+//------------------------------- Start extracting ------------------------------------
+url_save_file = ui_save_file();
+if (!check_url) {
+    alert("canceled.")
+}else{
 
-// Walk thru all the layers and extract them
-var l = fl.getDocumentDOM().getTimeline().layers;
-for (var i in l) {
-    if (l[i].layerType !== 'normal' && l[i].layerType !== 'guide')
-        continue;
-    var one_layer_info = extract_layer(l[i]);
-    obj_scene.layers.push(one_layer_info);
-}
+    // Construct the scene object
+    var obj_scene = {
+        'scene_info': get_stage_info(fl.getDocumentDOM()),
+        'layers': []
+    };
 
-var save_txt_file = function(contents) {
-    if (!contents)
-        return false;
-    var fileURL = '';
-
-    fileURL = fl.browseForFileURL("save", "将 JSON 另存为...", "JSON 文件·(*.json)", "json");
-    if (!fileURL || !fileURL.length)
-        return false;
-
-    var ending = fileURL.slice(-5);
-    if (ending !== '.json')
-        fileURL += '.json';
-
-    //var contentsLinebreaks = stringReplace(contents, "\n", "\r\n");
-
-    if (!FLfile.write(fileURL, contents))
-    {
-        alert('保存失败');
-        return false;
+    // Walk thru all the layers and extract them
+    var l = fl.getDocumentDOM().getTimeline().layers;
+    for (var i in l) {
+        if (l[i].layerType !== 'normal' && l[i].layerType !== 'guide')
+            continue;
+        var one_layer_info = extract_layer(l[i]);
+        obj_scene.layers.push(one_layer_info);
     }
-    return fileURL;
-};
-//var save_file_path = fl.getDocumentDOM().path;
-json_txt = JSON.stringify(obj_scene);
-saved_path = save_txt_file(json_txt);
-if (saved_path) {
-    log.info('json file saved to ' + saved_path);
+
+    //var save_file_path = fl.getDocumentDOM().path;
+    json_txt = JSON.stringify(obj_scene);
+    saved_path = save_txt_file(json_txt, url_save_file);
+    if (saved_path) {
+        log.info('json file saved to ' + saved_path);
+    }
+
 }
+
 
 

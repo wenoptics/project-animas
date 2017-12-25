@@ -29,7 +29,7 @@ for(i=0; i<layers.length; i++) {
                         fl.trace("\t\t\t\t (x, y) == " + easeCurve[g].x + ", " + easeCurve[g].y);
                     }               
                 }
-                var _p = ['tweenType', 'tweenEasing', 'tweenInstanceName', 'useSingleEaseCurve', 'isMotionObject()']
+                var _p = ['tweenType', 'tweenEasing', 'tweenInstanceName', 'useSingleEaseCurve', 'isMotionObject()'];
                 for (var __p in _p) {
                     fl.trace("\t\t\t." + _p[__p] + ': ' + eval('frames[j].'+_p[__p]));
                 }
@@ -190,6 +190,35 @@ for(i=0; i<layers.length; i++) {
 
                     }                    
 
+                    // If it's a instance
+                    if (e.elementType === 'instance') {
+                        fl.trace("\t\t\t\t instance print (This element is an `instance`)");
+
+                        fl.trace("\t\t\t\t\t.instanceType: " + e.instanceType);
+                        fl.trace("\t\t\t\t\t.libraryItem: " + e.libraryItem);
+
+                        if (e.instanceType === 'bitmap') {
+                            fl.trace("\t\t\t\t\t bitmap obj print: ");
+                            pl = [
+                                'allowSmoothing',
+                                'compressionType',
+                                'fileLastModifiedDate',
+                                'hasValidAlphaLayer',
+                                'hPixels',
+                                'lastModifiedDate',
+                                'originalCompressionType',
+                                'sourceFileExists',
+                                'sourceFileIsCurrent',
+                                'sourceFilePath',
+                                'useDeblocking',
+                                'useImportedJPEGQuality',
+                                'vPixels'
+                            ];
+                            for (var _i = 0; _i < pl.length; _i++) {
+                                fl.trace("\t\t\t\t\t\t." + pl[_i] + ": " + eval("e."+pl[_i]));
+                            }
+                        }
+                    }
                 }
 
             }
